@@ -32,8 +32,7 @@ int main( int argc, char** argv)
 {
 	no_of_nodes=0;
 	edge_list_size=0;
-    BFSGraph( argc, argv);
-    //CUT_EXIT(argc, argv);
+  BFSGraph(argc, argv);
 	return 0;
 }
 
@@ -106,9 +105,9 @@ void BFSGraph( int argc, char** argv)
     int* h_graph_edges = (int*) malloc(sizeof(int)*edge_list_size);
     for(int i=0; i < edge_list_size ; i++)
     {
-		fscanf(fp,"%d",&id);
-		fscanf(fp,"%d",&cost);
-		h_graph_edges[i] = id;
+  		fscanf(fp,"%d",&id);
+  		fscanf(fp,"%d",&cost);
+  		h_graph_edges[i] = id;
     }
 
 	if(fp)
@@ -116,20 +115,18 @@ void BFSGraph( int argc, char** argv)
 
 	printf("Read File\n");
 
-    // allocate mem for the result on host side
 	int* h_cost = (int*) malloc( sizeof(int)*no_of_nodes);
-	for(int i=0;i<no_of_nodes;i++) {
+	for(int i=0;i<no_of_nodes;i++)
+  {
 			h_cost[i]=-1;
 	}
 	h_cost[source]=0;
 
 	printf("Copied Everything to GPU memory\n");
 
-    // setup execution parameters
+  // setup execution parameters
   run_bfs_gpu(no_of_nodes,h_graph_nodes,edge_list_size,h_graph_edges,
        h_graph_mask, h_updating_graph_mask, h_graph_visited, h_cost);
-
-  //int k=0;
 
 
 	//Store the result into a file
@@ -140,7 +137,7 @@ void BFSGraph( int argc, char** argv)
 	printf("Result stored in resultoff.txt\n");
 
 
-    // cleanup memory
+  // cleanup memory
   free( h_graph_nodes);
   free( h_graph_edges);
   free( h_graph_mask);
@@ -155,8 +152,12 @@ void run_bfs_gpu(int no_of_nodes, Node *d_graph_nodes, int edge_list_size,
   //make a variable to check if the execution is over
   char d_over[1];
 
+  double start;
+  double end;
+
 #pragma omp target data map(to: d_graph_nodes[0:no_of_nodes],d_graph_edges[0:edge_list_size],d_graph_visited[0:no_of_nodes],d_graph_mask[0:no_of_nodes],d_updating_graph_mask[0:no_of_nodes]) map(alloc: d_over[0:1]) map(tofrom: d_cost[0:no_of_nodes])
   {
+    start = omp_get_wtime();
     do {
       d_over[0] = 0;
 #pragma omp target update to (d_over[0:1])
@@ -165,14 +166,11 @@ void run_bfs_gpu(int no_of_nodes, Node *d_graph_nodes, int edge_list_size,
       for (int tid = 0; tid < no_of_nodes; tid++) {
         if(d_graph_mask[tid]){
           d_graph_mask[tid]=false;
-					//d_graph_visited[tid]=true;
           for(int i=d_graph_nodes[tid].starting;
 						i<(d_graph_nodes[tid].no_of_edges + d_graph_nodes[tid].starting); i++){
             int id = d_graph_edges[i];
             if(!d_graph_visited[id]){
               d_cost[id]=d_cost[tid]+1;
-              //d_graph_mask[id]=true;
-              //d_over[0] = 1;
 							d_updating_graph_mask[id]=true;
             }
           }
@@ -189,5 +187,7 @@ void run_bfs_gpu(int no_of_nodes, Node *d_graph_nodes, int edge_list_size,
 			}
 #pragma omp target update from (d_over[0:1])
     } while (d_over[0]);
+    end = omp_get_wtime();
+    printf("Computation time is: %lf\n", end - start);
   }
 }

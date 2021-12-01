@@ -44,8 +44,7 @@ int main( int argc, char** argv)
 {
 	no_of_nodes=0;
 	edge_list_size=0;
-    BFSGraph( argc, argv);
-    //CUT_EXIT(argc, argv);
+  BFSGraph( argc, argv);
 	return 0;
 }
 
@@ -56,12 +55,9 @@ int main( int argc, char** argv)
 ////////////////////////////////////////////////////////////////////////////////
 void BFSGraph( int argc, char** argv)
 {
-
-//    CUT_DEVICE_INIT();
-
 	printf("Reading File\n");
 	const char *input_file_name;
-	//printf("argc=%d\n", argc);
+
 	if (argc == 2 ) {
 		input_file_name = argv[1];
 		printf("Input file: %s\n", input_file_name);
@@ -122,18 +118,18 @@ void BFSGraph( int argc, char** argv)
 		h_graph_edges[i] = id;
     }
 
-	if(fp)
-	fclose(fp);
+		if(fp)
+		fclose(fp);
 
-	printf("Read File\n");
+		printf("Read File\n");
 
-	//Copy the Node list to device memory
+		//Copy the Node list to device memory
     Node* d_graph_nodes;
     cudaMalloc( (void**) &d_graph_nodes, sizeof(Node)*no_of_nodes);
     cudaMemcpy( d_graph_nodes, h_graph_nodes, sizeof(Node)*no_of_nodes, cudaMemcpyHostToDevice);
 
-	//Copy the Edge List to device Memory
-	int* d_graph_edges;
+		//Copy the Edge List to device Memory
+		int* d_graph_edges;
     cudaMalloc( (void**) &d_graph_edges, sizeof(int)*edge_list_size);
     cudaMemcpy( d_graph_edges, h_graph_edges, sizeof(int)*edge_list_size, cudaMemcpyHostToDevice);
 
@@ -148,12 +144,12 @@ void BFSGraph( int argc, char** argv)
     cudaMemcpy( d_graph_visited, h_graph_visited, sizeof(bool)*no_of_nodes, cudaMemcpyHostToDevice);
 
     // allocate mem for the result on host side
-	int* h_cost = (int*) malloc( sizeof(int)*no_of_nodes);
-	for(int i=0;i<no_of_nodes;i++)
-	h_cost[i]=-1;
-	h_cost[source]=0;
+		int* h_cost = (int*) malloc( sizeof(int)*no_of_nodes);
+		for(int i=0;i<no_of_nodes;i++)
+		h_cost[i]=-1;
+		h_cost[source]=0;
 
-	// allocate device memory for result
+		// allocate device memory for result
     int* d_cost;
     cudaMalloc( (void**) &d_cost, sizeof(int)*no_of_nodes);
     cudaMemcpy( d_cost, h_cost, sizeof(int)*no_of_nodes, cudaMemcpyHostToDevice);
@@ -162,27 +158,27 @@ void BFSGraph( int argc, char** argv)
     bool *d_over;
     cudaMalloc( (void**) &d_over, sizeof(bool));
 
-	printf("Copied Everything to GPU memory\n");
+		printf("Copied Everything to GPU memory\n");
 
     // setup execution parameters
     dim3  grid( num_of_blocks, 1, 1);
     dim3  threads( num_of_threads_per_block, 1, 1);
 
-	int k=0;
+		int k=0;
 
-	bool stop;
-	//Call the Kernel untill all the elements of Frontier are not false
+		bool stop;
+		//Call the Kernel untill all the elements of Frontier are not false
     do
     {
-	//if no thread changes this value then the loop stops
-	stop=false;
-	cudaMemcpy( d_over, &stop, sizeof(bool), cudaMemcpyHostToDevice);
-	Kernel<<< grid, threads, 0 >>>( d_graph_nodes, d_graph_edges, d_graph_mask, d_graph_visited, d_cost, d_over, no_of_nodes);
-	cudaDeviceSynchronize();
-	// check if kernel execution generated and error
-  cudaMemcpy( &stop, d_over, sizeof(bool), cudaMemcpyDeviceToHost);
-    k++;
-	}
+			//if no thread changes this value then the loop stops
+			stop=false;
+			cudaMemcpy( d_over, &stop, sizeof(bool), cudaMemcpyHostToDevice);
+			Kernel<<< grid, threads, 0 >>>( d_graph_nodes, d_graph_edges, d_graph_mask, d_graph_visited, d_cost, d_over, no_of_nodes);
+			cudaDeviceSynchronize();
+			// check if kernel execution generated and error
+		  cudaMemcpy( &stop, d_over, sizeof(bool), cudaMemcpyDeviceToHost);
+		  k++;
+		}
     while(stop);
 
 
@@ -192,12 +188,12 @@ void BFSGraph( int argc, char** argv)
     cudaMemcpy( h_cost, d_cost, sizeof(int)*no_of_nodes, cudaMemcpyDeviceToHost);
 
 
-	//Store the result into a file
-	FILE *fpo = fopen("result.txt","w");
-	for(int i=0;i<no_of_nodes;i++)
-	fprintf(fpo,"%d) cost:%d\n",i,h_cost[i]);
-	fclose(fpo);
-	printf("Result stored in result.txt\n");
+		//Store the result into a file
+		FILE *fpo = fopen("result.txt","w");
+		for(int i=0;i<no_of_nodes;i++)
+		fprintf(fpo,"%d) cost:%d\n",i,h_cost[i]);
+		fclose(fpo);
+		printf("Result stored in result.txt\n");
 
 
     // cleanup memory
