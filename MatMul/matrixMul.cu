@@ -4,11 +4,12 @@
 
 void matrixMultiplication(float *A, float *B, float *Result, int Width);
 __global__ void matrixMulKernel(float *dA, float *dB, float *dResult, int Width);
+int minimum(int, int);
 
 int main(int argc, char *argv[])
 {
     int N = atoi(argv[1]);
- 
+
     float *A, *B, *Result;
 
     A = (float *)calloc(N * N, sizeof(float));
@@ -44,9 +45,13 @@ void matrixMultiplication(float *A, float *B, float *Result, int Width)
 
     cudaMalloc(&dResult, size);
 
-    dim3 dimBlock(Width, Width);
-    dim3 dimGrid(Width/dimBlock.x, Width/dimBlock.y);
-    //dim3 dimGrid(1, 1);
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid(ceil(double(Width + 31) / 32), ceil(double(Width + 31) / 32));
+    if (Width > 10000)
+    {
+        dimGrid.x = ceil(double(Width + 31) / minimum(Width, 1000));
+        dimGrid.y = ceil(double(Width + 31) / minimum(Width, 1000));
+    }
 
     matrixMulKernel<<<dimGrid, dimBlock>>>(dA, dB, dResult, Width);
 
@@ -65,7 +70,17 @@ void matrixMultiplication(float *A, float *B, float *Result, int Width)
     cudaFree(dB);
     cudaFree(dResult);
 }
-
+int minimum(int n, int x)
+{
+    if (n < x)
+    {
+        return n;
+    }
+    else
+    {
+        return x;
+    }
+}
 __global__ void matrixMulKernel(float *dA, float *dB, float *dResult, int width)
 {
 
@@ -73,11 +88,12 @@ __global__ void matrixMulKernel(float *dA, float *dB, float *dResult, int width)
     int row = blockIdx.y * blockDim.y + threadIdx.y;
 
     int sum = 0;
-
-    for (int i = 0; i < width; i++)
+    if (col < width && row < width)
     {
-        sum += dA[row * width + i] * dB[i * width + col];
+        for (int i = 0; i < width; i++)
+        {
+            sum += dA[row * width + i] * dB[i * width + col];
+        }
+        dResult[row * width + col] = sum;
     }
-    dResult[row * width + col] = sum;
-  
 }
