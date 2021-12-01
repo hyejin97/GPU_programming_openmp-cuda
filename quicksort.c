@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "omp.h"
 
@@ -9,7 +10,8 @@
 
 void omp_qsort(int *arr, int nitems);
 
-void qsort_helper(int *arr, int left, int right, int depth){
+void qsort_helper(int *arr, int left, int right, int depth, float* seconds){
+    clock_t start = clock();
 
     int *lptr = arr + left;
     int *rptr = arr + right;
@@ -42,12 +44,15 @@ void qsort_helper(int *arr, int left, int right, int depth){
 
     int nright = rptr - arr;
     int nleft  = lptr - arr;
+	
+    clock_t end = clock();
+    *seconds += (float)(end - start) / CLOCKS_PER_SEC;
 
     // Launch a new block to sort the left part.
     if (left < nright){
         #pragma omp task 	
 	{
-		qsort_helper(arr, left, nright, depth+1);
+		qsort_helper(arr, left, nright, depth+1, seconds);
 	}
     }
 
@@ -55,25 +60,29 @@ void qsort_helper(int *arr, int left, int right, int depth){
     if (nleft < right){
 	#pragma omp task  
 	{
-        	qsort_helper(arr, nleft, right, depth+1);
+        	qsort_helper(arr, nleft, right, depth+1, seconds);
 	}
     }
 }
 
 
 void omp_qsort(int *arr, int n){
+	float* seconds; //calculate time consumed for operations only 
+	float total_compute_time = 0.0;
 
 	omp_set_num_threads(NUM_THREADS);
-
+	
 	#pragma omp target data map(tofrom: arr) map(to: n)
 	#pragma omp parallel
 	{
 		#pragma omp single nowait  
 		{
-			qsort_helper(arr, 0, n-1, 0);
+			seconds = &total_compute_time; 
+			qsort_helper(arr, 0, n-1, 0, seconds);
 		}
 	}
 
+	printf("total computation time: %f\n", *seconds);
 }
 
 
