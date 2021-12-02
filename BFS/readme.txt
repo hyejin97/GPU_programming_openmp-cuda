@@ -1,10 +1,6 @@
 Datasets:
   Input data is stored in data folder
 
-Building Environment:
-  gcc-11.2
-  cuda-10.2
-
 Compiling and executing the OpenMP version
   gcc-11.2
 
